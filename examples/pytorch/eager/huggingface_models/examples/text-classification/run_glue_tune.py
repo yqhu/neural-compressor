@@ -96,6 +96,9 @@ class DataTrainingArguments:
         default=None, metadata={"help": "A csv or a json file containing the validation data."}
     )
     test_file: Optional[str] = field(default=None, metadata={"help": "A csv or a json file containing the test data."})
+    native_quantization: bool = field(
+        default=False, metadata={"help": "Use native dynamic quantization"}
+    )
 
     def __post_init__(self):
         if self.task_name is not None:
@@ -458,9 +461,14 @@ def main():
 
     if training_args.benchmark:
         if training_args.int8:
-            from lpot.utils.pytorch import load
-            new_model = load(
-                    os.path.abspath(os.path.expanduser(training_args.tuned_checkpoint)), model)
+            if data_args.native_quantization:
+                print('Using native dynamic quantization')
+                import torch
+                new_model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+            else:
+                print('Loading LPOT model from', os.path.abspath(os.path.expanduser(training_args.tuned_checkpoint)))
+                from lpot.utils.pytorch import load
+                new_model = load(os.path.abspath(os.path.expanduser(training_args.tuned_checkpoint)), model)
         else:
             new_model = model
         trainer = Trainer(
