@@ -7,9 +7,6 @@ pip install lpot
 git clone https://github.com/yqhu/neural-compressor
 cd neural-compressor/examples/pytorch/eager/huggingface_models
 python setup.py install
-
-cd examples/text-classification
-pip install -r requirements.txt
 </pre>
 
 # Installations
@@ -46,3 +43,5 @@ bash eval_tuning_native.sh
 bash eval_tuning_lpot.sh
 </pre>
 
+# Accuracy vs Speed/Model size tradeoff
+Modify conf.yaml to test different values for tuning->accuracy_criterion->relative.
