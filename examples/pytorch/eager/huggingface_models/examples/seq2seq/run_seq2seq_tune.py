@@ -127,6 +127,9 @@ class DataTrainingArguments:
         default=True,
         metadata={"help": "If only pad tokens should be ignored. This assumes that `config.pad_token_id` is defined."},
     )
+    native_quantization: bool = field(
+        default=False, metadata={"help": "Use native dynamic quantization"}
+    )
 
 
 def handle_metrics(split, metrics, output_dir):
@@ -349,9 +352,18 @@ def main():
 
     if training_args.benchmark:
         if training_args.int8:
-            from lpot.utils.pytorch import load
-            new_model = load(
-                    os.path.abspath(os.path.expanduser(training_args.tuned_checkpoint)), model)
+            if data_args.native_quantization:
+                print('Using native dynamic quantization')
+                import torch
+                new_model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+                import torch
+                torch.save(new_model.state_dict(), '/tmp/native_fp16.pt')
+            else:
+                print('Loading LPOT model from', os.path.abspath(os.path.expanduser(training_args.tuned_checkpoint)))
+                from lpot.utils.pytorch import load
+                new_model = load(os.path.abspath(os.path.expanduser(training_args.tuned_checkpoint)), model)
+                import torch
+                torch.save(new_model.state_dict(), '/tmp/lpot_fp16.pt')
         else:
             new_model = model
         trainer.model = new_model
@@ -370,6 +382,7 @@ def main():
         print('Throughput: %.3f samples/sec' % (results["val_samples_per_second"]))
         print('Latency: %.3f ms' % (1 * 1000 / results["val_samples_per_second"]))
         print('Batch size = %d' % training_args.per_device_eval_batch_size)
+        print('Results:', results)
         exit(0) 
     
     if training_args.accuracy_only:
@@ -392,6 +405,7 @@ def main():
             print('Accuracy: %.4f' % (results['val_bleu']))
         print('Latency: %.3f ms' % (1 * 1000 / results["val_samples_per_second"]))
         print('Batch size = %d' % training_args.per_device_eval_batch_size)
+        print('Results:', results)
         exit(0) 
 
     # Evaluation
